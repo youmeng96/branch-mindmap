@@ -1,0 +1,765 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Branch Mindmap</title>
+  <style>
+    :root {
+      --ink: #10211d;
+      --muted: #64748b;
+      --line: #cbd5e1;
+      --canvas: #f8faf9;
+      --panel: #ffffff;
+      --teal: #0f766e;
+      --teal-soft: #ccfbf1;
+      --shadow: 0 12px 40px rgba(15, 23, 42, .10);
+      --todo: #64748b;
+      --active: #2563eb;
+      --done: #16a34a;
+      --blocked: #dc2626;
+      --rejected: #9333ea;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      color: var(--ink);
+      background: #eef3f1;
+      font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+    }
+    button, input, textarea, select { font: inherit; }
+    button { cursor: pointer; }
+    .shell { display: flex; flex-direction: column; height: 100vh; }
+    header {
+      height: 68px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 0 22px;
+      background: rgba(255, 255, 255, .92);
+      border-bottom: 1px solid #dbe4e1;
+      backdrop-filter: blur(18px);
+      z-index: 5;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; min-width: 260px; }
+    .brand-mark {
+      width: 38px; height: 38px; border-radius: 12px;
+      display: grid; place-items: center;
+      color: white; background: linear-gradient(145deg, #0f766e, #14b8a6);
+      box-shadow: 0 8px 18px rgba(15, 118, 110, .22);
+      font-weight: 800; letter-spacing: -.04em;
+    }
+    .brand h1 { margin: 0; font-size: 15px; letter-spacing: -.01em; }
+    .brand p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
+    .header-spacer { flex: 1; }
+    .connection {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 11px; border-radius: 999px;
+      color: #475569; background: #f1f5f4; font-size: 12px;
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #94a3b8; }
+    .connection.online .dot { background: #16a34a; box-shadow: 0 0 0 4px rgba(22, 163, 74, .12); }
+    .connection.offline .dot { background: #f59e0b; }
+    .toolbar { display: flex; align-items: center; gap: 8px; }
+    .btn {
+      border: 1px solid #d7e0dd;
+      background: white;
+      color: #334155;
+      border-radius: 10px;
+      padding: 8px 12px;
+      transition: .16s ease;
+    }
+    .btn:hover { border-color: #9fb6b0; transform: translateY(-1px); }
+    .btn.primary { color: white; background: var(--teal); border-color: var(--teal); }
+    .btn.primary:hover { background: #115e59; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+    .layout { display: flex; flex: 1; min-height: 0; }
+    .canvas-wrap {
+      position: relative; flex: 1; min-width: 0;
+      background-color: var(--canvas);
+      background-image: radial-gradient(circle, #cfe0da 1px, transparent 1px);
+      background-size: 22px 22px;
+      overflow: hidden;
+    }
+    #canvas { width: 100%; height: 100%; display: block; touch-action: none; }
+    .node-card {
+      width: 100%; height: 100%; padding: 10px 12px;
+      border-radius: 14px; background: white;
+      border: 1px solid #d9e4e0;
+      box-shadow: 0 7px 18px rgba(15, 23, 42, .06);
+      overflow: hidden;
+    }
+    .node.selected .node-card {
+      border-color: var(--teal);
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, .14), 0 12px 28px rgba(15, 23, 42, .12);
+    }
+    .node-top { display: flex; align-items: center; gap: 7px; margin-bottom: 7px; }
+    .pill { padding: 3px 7px; border-radius: 999px; font-size: 10px; font-weight: 700; letter-spacing: .02em; }
+    .pill.kind { color: #475569; background: #f1f5f9; }
+    .pill.status { color: white; background: var(--status-color); }
+    .node-title {
+      font-size: 13px; line-height: 1.35; font-weight: 700;
+      color: #172554; display: -webkit-box; -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .node-sub { margin-top: 5px; color: #64748b; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .zoom-controls {
+      position: absolute; left: 18px; bottom: 18px;
+      display: flex; gap: 6px; padding: 6px;
+      background: rgba(255,255,255,.9); border: 1px solid #dbe4e1;
+      border-radius: 12px; box-shadow: var(--shadow); backdrop-filter: blur(12px);
+    }
+    .zoom-controls button { width: 34px; height: 34px; border: 0; border-radius: 8px; background: transparent; color: #334155; font-size: 17px; }
+    .zoom-controls button:hover { background: #eef6f4; }
+    .toast {
+      position: absolute; left: 50%; bottom: 24px; transform: translate(-50%, 20px);
+      padding: 10px 14px; border-radius: 10px; color: white; background: #0f172a;
+      opacity: 0; pointer-events: none; transition: .2s ease; font-size: 13px; max-width: min(640px, 80%);
+      box-shadow: var(--shadow); z-index: 8;
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    .toast.error { background: #991b1b; }
+    aside {
+      width: 360px; flex: none; overflow-y: auto;
+      background: #f6f9f8; border-left: 1px solid #dbe4e1;
+      padding: 16px;
+    }
+    .panel { background: var(--panel); border: 1px solid #dbe4e1; border-radius: 16px; padding: 16px; margin-bottom: 14px; box-shadow: 0 5px 16px rgba(15,23,42,.04); }
+    .panel h2 { margin: 0 0 12px; font-size: 13px; letter-spacing: .02em; text-transform: uppercase; color: #64748b; }
+    .empty { color: var(--muted); font-size: 13px; line-height: 1.65; }
+    label { display: block; margin: 11px 0 5px; color: #475569; font-size: 12px; font-weight: 600; }
+    input, textarea, select {
+      width: 100%; border: 1px solid #d7e0dd; border-radius: 9px;
+      padding: 9px 10px; color: var(--ink); background: white; outline: none;
+    }
+    input:focus, textarea:focus, select:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(15,118,110,.10); }
+    textarea { min-height: 84px; resize: vertical; line-height: 1.5; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 13px; }
+    .actions .btn { padding: 8px 10px; font-size: 12px; }
+    .danger { color: #b91c1c; border-color: #fecaca; background: #fff7f7; }
+    .checkpoint { padding: 10px 0; border-top: 1px solid #e8eeec; }
+    .checkpoint:first-child { border-top: 0; padding-top: 0; }
+    .checkpoint-head { display: flex; justify-content: space-between; gap: 10px; color: #94a3b8; font-size: 10px; }
+    .checkpoint p { margin: 5px 0 0; font-size: 12px; line-height: 1.5; color: #334155; }
+    .hint { margin: 10px 0 0; color: #94a3b8; font-size: 11px; line-height: 1.5; }
+    @media (max-width: 900px) {
+      header { height: auto; padding: 12px; flex-wrap: wrap; }
+      .brand { min-width: 0; flex: 1; }
+      .connection { order: 5; }
+      .toolbar { order: 6; width: 100%; overflow-x: auto; }
+      aside { width: 320px; }
+    }
+  </style>
+</head>
+<body>
+<div class="shell">
+  <header>
+    <div class="brand">
+      <div class="brand-mark">B</div>
+      <div>
+        <h1 id="task-title">Branch Mindmap</h1>
+        <p>Codex 分支工作台 · 可编辑、可追溯</p>
+      </div>
+    </div>
+    <div class="header-spacer"></div>
+    <div id="connection" class="connection offline"><span class="dot"></span><span id="connection-text">离线预览</span></div>
+    <div class="toolbar">
+      <button class="btn" id="fit-btn" title="适应画面">适应</button>
+      <button class="btn" id="reload-btn">刷新</button>
+      <button class="btn" id="export-json-btn">导出 JSON</button>
+      <button class="btn" id="export-md-btn">导出 Mermaid</button>
+      <button class="btn primary" id="save-btn" disabled>保存</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <section class="canvas-wrap" id="canvas-wrap">
+      <svg id="canvas" aria-label="分支思维导图画布">
+        <g id="viewport"></g>
+      </svg>
+      <div class="zoom-controls">
+        <button id="zoom-out-btn" title="缩小">−</button>
+        <button id="fit-btn-2" title="适应画面">◎</button>
+        <button id="zoom-in-btn" title="放大">+</button>
+      </div>
+      <div id="toast" class="toast"></div>
+    </section>
+
+    <aside>
+      <section class="panel" id="detail-panel">
+        <h2>节点详情</h2>
+        <div class="empty">点击左侧节点查看和编辑。</div>
+      </section>
+      <section class="panel">
+        <h2>检查点</h2>
+        <div id="checkpoints"><div class="empty">还没有检查点。</div></div>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<script id="embedded-map" type="application/json">__EMBEDDED_MAP__</script>
+<script>
+(() => {
+  "use strict";
+
+  const NODE_W = 232;
+  const NODE_H = 82;
+  const H_GAP = 78;
+  const V_GAP = 18;
+  const STATUS_COLOR = {
+    todo: "#64748b",
+    active: "#2563eb",
+    done: "#16a34a",
+    blocked: "#dc2626",
+    rejected: "#9333ea"
+  };
+  const KIND_LABEL = {
+    goal: "目标", step: "步骤", decision: "决策", branch: "分支", artifact: "产物", risk: "风险"
+  };
+  const STATUS_LABEL = {
+    todo: "待办", active: "进行中", done: "完成", blocked: "阻塞", rejected: "否决"
+  };
+
+  const embedded = JSON.parse(document.getElementById("embedded-map").textContent);
+  const token = new URLSearchParams(window.location.search).get("token") || "";
+  const state = {
+    map: structuredClone(embedded),
+    baseRevision: embedded.revision,
+    selectedId: embedded.nodes.find(n => n.parent_id === null)?.id || embedded.nodes[0]?.id || null,
+    collapsed: new Set(),
+    dirty: false,
+    connected: false,
+    view: { x: 44, y: 44, scale: 1 },
+    dragging: false,
+    dragStart: null
+  };
+
+  const canvas = document.getElementById("canvas");
+  const wrap = document.getElementById("canvas-wrap");
+  const viewport = document.getElementById("viewport");
+  const detail = document.getElementById("detail-panel");
+  const connection = document.getElementById("connection");
+  const connectionText = document.getElementById("connection-text");
+  const saveButton = document.getElementById("save-btn");
+  const title = document.getElementById("task-title");
+  const toast = document.getElementById("toast");
+  let toastTimer = null;
+
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+  }
+
+  function safeMermaidId(value) {
+    return String(value).replace(/[^a-zA-Z0-9_]/g, "_");
+  }
+
+  function escapeMermaid(value) {
+    return String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll("\n", " ");
+  }
+
+  function nowIso() { return new Date().toISOString(); }
+
+  function nodeById(id) { return state.map.nodes.find(n => n.id === id) || null; }
+
+  function showToast(message, isError = false) {
+    toast.textContent = message;
+    toast.classList.toggle("error", isError);
+    toast.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove("show"), 3200);
+  }
+
+  function markDirty() {
+    state.dirty = true;
+    updateSaveButton();
+  }
+
+  function updateSaveButton() {
+    saveButton.disabled = !state.connected || !state.dirty;
+    saveButton.textContent = state.dirty ? "保存*" : "保存";
+  }
+
+  function setConnection(online) {
+    state.connected = online;
+    connection.classList.toggle("online", online);
+    connection.classList.toggle("offline", !online);
+    connectionText.textContent = online ? "已连接本地编辑器" : "离线预览（可导出）";
+    updateSaveButton();
+  }
+
+  function childrenOf(id) {
+    return state.map.nodes.filter(n => n.parent_id === id);
+  }
+
+  function visibleChildren(id) {
+    return state.collapsed.has(id) ? [] : childrenOf(id);
+  }
+
+  function roots() {
+    return state.map.nodes.filter(n => n.parent_id === null);
+  }
+
+  function computeHeights() {
+    const heights = new Map();
+    const visiting = new Set();
+    function walk(id) {
+      if (heights.has(id)) return heights.get(id);
+      if (visiting.has(id)) return NODE_H;
+      visiting.add(id);
+      const kids = visibleChildren(id);
+      let height = NODE_H;
+      if (kids.length) {
+        const total = kids.reduce((sum, child) => sum + walk(child.id), 0) + V_GAP * (kids.length - 1);
+        height = Math.max(NODE_H, total);
+      }
+      visiting.delete(id);
+      heights.set(id, height);
+      return height;
+    }
+    roots().forEach(root => walk(root.id));
+    return heights;
+  }
+
+  function layoutNodes() {
+    const positions = new Map();
+    const heights = computeHeights();
+    let nextTop = 0;
+    function place(id, depth, top) {
+      const height = heights.get(id) || NODE_H;
+      positions.set(id, {
+        x: depth * (NODE_W + H_GAP),
+        y: top + height / 2 - NODE_H / 2,
+        height
+      });
+      let childTop = top;
+      for (const child of visibleChildren(id)) {
+        const childHeight = heights.get(child.id) || NODE_H;
+        place(child.id, depth + 1, childTop);
+        childTop += childHeight + V_GAP;
+      }
+    }
+    for (const root of roots()) {
+      const height = heights.get(root.id) || NODE_H;
+      place(root.id, 0, nextTop);
+      nextTop += height + V_GAP * 2;
+    }
+    return positions;
+  }
+
+  function renderTree() {
+    const positions = layoutNodes();
+    const edges = [];
+    const nodes = [];
+    for (const node of state.map.nodes) {
+      const pos = positions.get(node.id);
+      if (!pos) continue;
+      if (node.parent_id && positions.has(node.parent_id)) {
+        const parent = positions.get(node.parent_id);
+        const x1 = parent.x + NODE_W;
+        const y1 = parent.y + NODE_H / 2;
+        const x2 = pos.x;
+        const y2 = pos.y + NODE_H / 2;
+        const mid = (x1 + x2) / 2;
+        edges.push(`<path d="M ${x1} ${y1} C ${mid} ${y1}, ${mid} ${y2}, ${x2} ${y2}" fill="none" stroke="#a8bbb5" stroke-width="2"/>`);
+      }
+    }
+    for (const node of state.map.nodes) {
+      const pos = positions.get(node.id);
+      if (!pos) continue;
+      const color = STATUS_COLOR[node.status] || STATUS_COLOR.todo;
+      const summary = node.summary ? `<div class="node-sub">${escapeHtml(node.summary)}</div>` : `<div class="node-sub">${escapeHtml(node.origin)}</div>`;
+      const selected = node.id === state.selectedId ? " selected" : "";
+      nodes.push(`
+        <g class="node${selected}" data-id="${escapeHtml(node.id)}" transform="translate(${pos.x} ${pos.y})" style="--status-color:${color}">
+          <foreignObject x="0" y="0" width="${NODE_W}" height="${NODE_H}">
+            <div xmlns="http://www.w3.org/1999/xhtml" class="node-card">
+              <div class="node-top">
+                <span class="pill kind">${escapeHtml(KIND_LABEL[node.kind] || node.kind)}</span>
+                <span class="pill status">${escapeHtml(STATUS_LABEL[node.status] || node.status)}</span>
+              </div>
+              <div class="node-title">${escapeHtml(node.title)}</div>
+              ${summary}
+            </div>
+          </foreignObject>
+        </g>`);
+    }
+    viewport.innerHTML = `<g transform="translate(${state.view.x} ${state.view.y}) scale(${state.view.scale})">${edges.join("")}${nodes.join("")}</g>`;
+  }
+
+  function renderDetail() {
+    const node = nodeById(state.selectedId);
+    if (!node) {
+      detail.innerHTML = '<h2>节点详情</h2><div class="empty">点击左侧节点查看和编辑。</div>';
+      return;
+    }
+    detail.innerHTML = `
+      <h2>节点详情</h2>
+      <label>标题</label>
+      <input id="edit-title" value="${escapeHtml(node.title)}">
+      <label>摘要</label>
+      <textarea id="edit-summary" placeholder="说明这个分支的目的、依据或待确认事项">${escapeHtml(node.summary || "")}</textarea>
+      <div class="grid-2">
+        <div><label>类型</label><select id="edit-kind">
+          ${Object.entries(KIND_LABEL).map(([value, label]) => `<option value="${value}" ${node.kind === value ? "selected" : ""}>${label}</option>`).join("")}
+        </select></div>
+        <div><label>状态</label><select id="edit-status">
+          ${Object.entries(STATUS_LABEL).map(([value, label]) => `<option value="${value}" ${node.status === value ? "selected" : ""}>${label}</option>`).join("")}
+        </select></div>
+      </div>
+      <label>产物路径（每行一个）</label>
+      <textarea id="edit-artifacts" placeholder="例如：src/app.ts">${escapeHtml((node.artifacts || []).join("\n"))}</textarea>
+      <div class="actions">
+        <button class="btn primary" id="apply-node">应用修改</button>
+        <button class="btn" id="add-child">添加子节点</button>
+        <button class="btn" id="add-sibling">添加同级</button>
+        <button class="btn" id="toggle-collapse">${state.collapsed.has(node.id) ? "展开分支" : "折叠分支"}</button>
+        <button class="btn danger" id="delete-node" ${node.parent_id === null ? "disabled" : ""}>删除节点</button>
+      </div>
+      <p class="hint">修改后点击“保存”写回 <code>map.json</code>。浏览器直接打开文件时只能导出，不能写回。</p>`;
+    document.getElementById("apply-node").addEventListener("click", applyNodeChanges);
+    document.getElementById("add-child").addEventListener("click", () => addNode(node.id));
+    document.getElementById("add-sibling").addEventListener("click", () => addSibling(node));
+    document.getElementById("toggle-collapse").addEventListener("click", () => toggleCollapse(node.id));
+    document.getElementById("delete-node").addEventListener("click", () => deleteNode(node));
+  }
+
+  function renderCheckpoints() {
+    const container = document.getElementById("checkpoints");
+    const items = [...(state.map.checkpoints || [])].slice(-10).reverse();
+    if (!items.length) {
+      container.innerHTML = '<div class="empty">还没有检查点。Codex 会在关键决策点写入。</div>';
+      return;
+    }
+    container.innerHTML = items.map(item => `
+      <div class="checkpoint">
+        <div class="checkpoint-head"><span>${escapeHtml(item.status || "info")}</span><span>${escapeHtml((item.timestamp || "").replace("T", " ").replace("Z", ""))}</span></div>
+        <p>${escapeHtml(item.message || "")}</p>
+      </div>`).join("");
+  }
+
+  function renderAll() {
+    title.textContent = state.map.task?.title || "Branch Mindmap";
+    document.title = `${state.map.task?.title || "Branch Mindmap"} · Branch Mindmap`;
+    renderTree();
+    renderDetail();
+    renderCheckpoints();
+    updateSaveButton();
+  }
+
+  function selectNode(id) {
+    state.selectedId = id;
+    renderAll();
+  }
+
+  function maxNodeNumber() {
+    return state.map.nodes.reduce((max, node) => {
+      const match = /^n-(\d+)$/.exec(node.id);
+      return match ? Math.max(max, Number(match[1])) : max;
+    }, 0);
+  }
+
+  function newNode(parentId, title) {
+    const timestamp = nowIso();
+    return {
+      id: `n-${String(maxNodeNumber() + 1).padStart(4, "0")}`,
+      parent_id: parentId,
+      title,
+      summary: "",
+      kind: "step",
+      status: "todo",
+      origin: "editor",
+      artifacts: [],
+      created_at: timestamp,
+      updated_at: timestamp
+    };
+  }
+
+  function addNode(parentId) {
+    const title = window.prompt("新节点标题");
+    if (!title || !title.trim()) return;
+    const node = newNode(parentId, title.trim());
+    state.map.nodes.push(node);
+    state.selectedId = node.id;
+    markDirty();
+    renderAll();
+  }
+
+  function addSibling(node) {
+    addNode(node.parent_id === null ? node.id : node.parent_id);
+  }
+
+  function descendantsOf(id) {
+    const result = new Set([id]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const node of state.map.nodes) {
+        if (node.parent_id && result.has(node.parent_id) && !result.has(node.id)) {
+          result.add(node.id);
+          changed = true;
+        }
+      }
+    }
+    return result;
+  }
+
+  function deleteNode(node) {
+    const doomed = descendantsOf(node.id);
+    if (!window.confirm(`删除“${node.title}”及其 ${doomed.size - 1} 个子节点？`)) return;
+    state.map.nodes = state.map.nodes.filter(item => !doomed.has(item.id));
+    state.selectedId = node.parent_id || roots()[0]?.id || null;
+    markDirty();
+    renderAll();
+  }
+
+  function toggleCollapse(id) {
+    if (state.collapsed.has(id)) state.collapsed.delete(id);
+    else state.collapsed.add(id);
+    renderAll();
+  }
+
+  function applyNodeChanges() {
+    const node = nodeById(state.selectedId);
+    if (!node) return;
+    const titleValue = document.getElementById("edit-title").value.trim();
+    if (!titleValue) { showToast("节点标题不能为空", true); return; }
+    node.title = titleValue;
+    node.summary = document.getElementById("edit-summary").value.trim();
+    node.kind = document.getElementById("edit-kind").value;
+    node.status = document.getElementById("edit-status").value;
+    node.artifacts = document.getElementById("edit-artifacts").value.split("\n").map(v => v.trim()).filter(Boolean);
+    node.origin = "editor";
+    node.updated_at = nowIso();
+    markDirty();
+    renderAll();
+    showToast("节点已修改，记得保存");
+  }
+
+  function applyView() {
+    const group = viewport.firstElementChild;
+    if (group) group.setAttribute("transform", `translate(${state.view.x} ${state.view.y}) scale(${state.view.scale})`);
+  }
+
+  function fitView() {
+    const positions = layoutNodes();
+    if (!positions.size) return;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const pos of positions.values()) {
+      minX = Math.min(minX, pos.x);
+      minY = Math.min(minY, pos.y);
+      maxX = Math.max(maxX, pos.x + NODE_W);
+      maxY = Math.max(maxY, pos.y + NODE_H);
+    }
+    const pad = 60;
+    const width = maxX - minX;
+    const height = maxY - minY;
+    const availableW = Math.max(320, wrap.clientWidth - pad * 2);
+    const availableH = Math.max(240, wrap.clientHeight - pad * 2);
+    const scale = Math.min(1.15, availableW / Math.max(width, 1), availableH / Math.max(height, 1));
+    state.view.scale = Math.max(0.25, scale);
+    state.view.x = pad - minX * state.view.scale + Math.max(0, (availableW - width * state.view.scale) / 2);
+    state.view.y = pad - minY * state.view.scale + Math.max(0, (availableH - height * state.view.scale) / 2);
+    applyView();
+  }
+
+  function zoomBy(factor) {
+    const next = Math.min(2.2, Math.max(0.25, state.view.scale * factor));
+    const centerX = wrap.clientWidth / 2;
+    const centerY = wrap.clientHeight / 2;
+    const worldX = (centerX - state.view.x) / state.view.scale;
+    const worldY = (centerY - state.view.y) / state.view.scale;
+    state.view.scale = next;
+    state.view.x = centerX - worldX * next;
+    state.view.y = centerY - worldY * next;
+    applyView();
+  }
+
+  function mergeRemoteMap(remote) {
+    state.map = remote;
+    state.baseRevision = remote.revision;
+    if (!nodeById(state.selectedId)) state.selectedId = roots()[0]?.id || remote.nodes[0]?.id || null;
+    state.dirty = false;
+    renderAll();
+  }
+
+  async function fetchMap() {
+    if (!token) return false;
+    try {
+      const response = await fetch("/api/map", { headers: { "X-Map-Token": token }, cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      mergeRemoteMap(await response.json());
+      setConnection(true);
+      return true;
+    } catch (error) {
+      setConnection(false);
+      showToast("未连接本地编辑器，当前为离线预览", true);
+      return false;
+    }
+  }
+
+  async function saveMap() {
+    if (!state.connected) { showToast("离线预览不能写回，请用 mapctl.py serve 启动编辑器", true); return; }
+    if (!state.dirty) { showToast("没有需要保存的修改"); return; }
+    try {
+      const response = await fetch("/api/map", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "X-Map-Token": token },
+        body: JSON.stringify({ map: state.map, expected_revision: state.baseRevision })
+      });
+      const result = await response.json();
+      if (response.status === 409) {
+        showToast(`保存冲突：服务器已到 r${result.current_revision}，请刷新后合并`, true);
+        return;
+      }
+      if (!response.ok) throw new Error(result.error || `HTTP ${response.status}`);
+      mergeRemoteMap(result);
+      setConnection(true);
+      showToast(`已保存 r${result.revision}`);
+    } catch (error) {
+      showToast(`保存失败：${error.message}`, true);
+    }
+  }
+
+  function download(name, text, type) {
+    const blob = new Blob([text], { type });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = name;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function exportJson() {
+    download(`${state.map.task_id}-map.json`, JSON.stringify(state.map, null, 2), "application/json");
+  }
+
+  function mermaidText() {
+    const ids = new Set(state.map.nodes.map(n => n.id));
+    const lines = ["```mermaid", "graph LR"];
+    for (const node of state.map.nodes) {
+      lines.push(`  ${safeMermaidId(node.id)}["${escapeMermaid(node.title)}"]`);
+    }
+    for (const node of state.map.nodes) {
+      if (node.parent_id && ids.has(node.parent_id)) {
+        lines.push(`  ${safeMermaidId(node.parent_id)} --> ${safeMermaidId(node.id)}`);
+      }
+    }
+    const styles = {
+      todo: "fill:#e2e8f0,stroke:#64748b,color:#0f172a",
+      active: "fill:#dbeafe,stroke:#2563eb,color:#172554",
+      done: "fill:#dcfce7,stroke:#16a34a,color:#052e16",
+      blocked: "fill:#fee2e2,stroke:#dc2626,color:#450a0a",
+      rejected: "fill:#f3e8ff,stroke:#9333ea,color:#3b0764"
+    };
+    for (const [status, style] of Object.entries(styles)) {
+      const nodes = state.map.nodes.filter(n => n.status === status).map(n => safeMermaidId(n.id));
+      if (nodes.length) {
+        lines.push(`  classDef ${status} ${style};`);
+        lines.push(`  class ${nodes.join(",")} ${status};`);
+      }
+    }
+    lines.push("```");
+    return lines.join("\n");
+  }
+
+  function exportMermaid() {
+    download(`${state.map.task_id}-mindmap.md`, mermaidText(), "text/markdown");
+  }
+
+  canvas.addEventListener("click", event => {
+    const node = event.target.closest?.(".node");
+    if (node?.dataset.id) selectNode(node.dataset.id);
+  });
+
+  canvas.addEventListener("pointerdown", event => {
+    if (event.target.closest?.(".node")) return;
+    state.dragging = true;
+    state.dragStart = { x: event.clientX, y: event.clientY, viewX: state.view.x, viewY: state.view.y };
+    canvas.setPointerCapture(event.pointerId);
+    canvas.style.cursor = "grabbing";
+  });
+
+  canvas.addEventListener("pointermove", event => {
+    if (!state.dragging || !state.dragStart) return;
+    state.view.x = state.dragStart.viewX + event.clientX - state.dragStart.x;
+    state.view.y = state.dragStart.viewY + event.clientY - state.dragStart.y;
+    applyView();
+  });
+
+  function endDrag(event) {
+    state.dragging = false;
+    state.dragStart = null;
+    canvas.style.cursor = "";
+    try { canvas.releasePointerCapture(event.pointerId); } catch (_) {}
+  }
+  canvas.addEventListener("pointerup", endDrag);
+  canvas.addEventListener("pointercancel", endDrag);
+
+  canvas.addEventListener("wheel", event => {
+    event.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+    const worldX = (mouseX - state.view.x) / state.view.scale;
+    const worldY = (mouseY - state.view.y) / state.view.scale;
+    const factor = event.deltaY < 0 ? 1.1 : 0.9;
+    const next = Math.min(2.2, Math.max(0.25, state.view.scale * factor));
+    state.view.scale = next;
+    state.view.x = mouseX - worldX * next;
+    state.view.y = mouseY - worldY * next;
+    applyView();
+  }, { passive: false });
+
+  document.getElementById("save-btn").addEventListener("click", saveMap);
+  document.getElementById("reload-btn").addEventListener("click", async () => {
+    const ok = await fetchMap();
+    if (ok) showToast("已刷新");
+  });
+  document.getElementById("fit-btn").addEventListener("click", fitView);
+  document.getElementById("fit-btn-2").addEventListener("click", fitView);
+  document.getElementById("zoom-in-btn").addEventListener("click", () => zoomBy(1.15));
+  document.getElementById("zoom-out-btn").addEventListener("click", () => zoomBy(1 / 1.15));
+  document.getElementById("export-json-btn").addEventListener("click", exportJson);
+  document.getElementById("export-md-btn").addEventListener("click", exportMermaid);
+
+  window.addEventListener("keydown", event => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+      event.preventDefault();
+      saveMap();
+    }
+    if (event.key === "Escape") {
+      state.selectedId = null;
+      renderAll();
+    }
+  });
+
+  window.addEventListener("beforeunload", event => {
+    if (!state.dirty) return;
+    event.preventDefault();
+    event.returnValue = "";
+  });
+
+  renderAll();
+  requestAnimationFrame(fitView);
+  fetchMap();
+})();
+</script>
+</body>
+</html>

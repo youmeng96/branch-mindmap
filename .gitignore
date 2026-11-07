@@ -1,0 +1,7 @@
+.codex-mindmap/
+__pycache__/
+*.py[cod]
+.venv/
+.env
+.pytest_cache/
+.DS_Store

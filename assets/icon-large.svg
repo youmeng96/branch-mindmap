@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Branch Mindmap">
+  <rect width="256" height="256" rx="64" fill="#0F172A"/>
+  <path d="M62 128h54M116 128V72h76M116 128v56h76" stroke="#5EEAD4" stroke-width="14" stroke-linecap="round"/>
+  <circle cx="62" cy="128" r="16" fill="#F8FAFC"/>
+  <circle cx="192" cy="72" r="16" fill="#60A5FA"/>
+  <circle cx="192" cy="184" r="16" fill="#A78BFA"/>
+</svg>

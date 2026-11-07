@@ -1,0 +1,39 @@
+name: Validate Branch Mindmap
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run tests
+        run: python -m unittest discover -s tests -v
+      - name: Smoke test CLI
+        shell: bash
+        run: |
+          MAP_JSON="$RUNNER_TEMP/map.json"
+          python scripts/mapctl.py init --workspace "$RUNNER_TEMP/demo" --task "CI smoke test" --goal "Verify map lifecycle" > "$RUNNER_TEMP/init.json"
+          MAP_JSON=$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["map"])' "$RUNNER_TEMP/init.json")
+          REVISION=$(python scripts/mapctl.py status --map "$MAP_JSON" | python -c 'import json,sys; print(json.load(sys.stdin)["revision"])')
+          python scripts/mapctl.py add --map "$MAP_JSON" --expected-revision "$REVISION" --parent n-0001 --title "Validate" --kind step
+          REVISION=$(python scripts/mapctl.py status --map "$MAP_JSON" | python -c 'import json,sys; print(json.load(sys.stdin)["revision"])')
+          python scripts/mapctl.py checkpoint --map "$MAP_JSON" --expected-revision "$REVISION" --message "CI complete" --status done --task-status done
+          python scripts/mapctl.py validate --map "$MAP_JSON"
+
+  links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Markdown links
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: --verbose --no-progress --accept 200,206,403 README.md SKILL.md references/*.md
