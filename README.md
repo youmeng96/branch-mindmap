@@ -37,13 +37,13 @@ npx skills add youmeng96/branch-mindmap -a codex
 ### 方式二：手动安装
 
 ```bash
-git clone https://github.com/youmeng96/youmeng96/branch-mindmap.git ~/.codex/skills/branch-mindmap
+git clone https://github.com/youmeng96/branch-mindmap.git ~/.codex/skills/branch-mindmap
 ```
 
 Windows PowerShell：
 
 ```powershell
-git clone https://github.com/youmeng96/youmeng96/branch-mindmap.git "$HOME\.codex\skills\branch-mindmap"
+git clone https://github.com/youmeng96/branch-mindmap.git "$HOME\.codex\skills\branch-mindmap"
 ```
 
 安装后重新打开 Codex 任务，让 Skill 被重新扫描。

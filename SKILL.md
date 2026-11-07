@@ -6,7 +6,7 @@ description: |
 metadata:
   author: "Branch Mindmap Contributors"
   version: "0.1.0"
-  repository: "https://github.com/youmeng96/"
+  repository: "https://github.com/youmeng96/branch-mindmap"
 ---
 
 # Branch Mindmap
