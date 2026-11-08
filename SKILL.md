@@ -1,17 +1,19 @@
 ---
 name: branch-mindmap
 description: |
-  为每一个可执行的 Codex 任务维护一张可编辑、可追溯的分支思维导图：当任务会修改文件、运行工具、调查资料、设计方案、编写代码、执行测试或包含多步决策时自动使用。
-  在关键检查点更新导图，让用户看清当前分支、证据、产物和待决策项；纯知识问答不建图。Use for actionable tasks that change files, run tools, investigate, design, code, test, or involve multi-step decisions. Do not use for pure Q&A.
+  为每一个可执行的 AI Agent 任务维护一张可编辑、可追溯的分支思维导图：当任务会修改文件、运行工具、调查资料、设计方案、编写代码、执行测试或包含多步决策时自动使用。
+  适用于 Codex、Claude Code、Cursor、OpenCode 等 Agent Skills 兼容 runtime；在关键检查点更新导图，让用户看清当前分支、证据、产物和待决策项。纯知识问答不建图。
+license: MIT
 metadata:
   author: "Branch Mindmap Contributors"
-  version: "0.1.0"
+  version: "0.1.1"
   repository: "https://github.com/youmeng96/branch-mindmap"
+  runtimes: "Codex, Claude Code, Cursor, OpenClaw, DeepSeek Harness, and other Agent Skills-compatible runtimes"
 ---
 
 # Branch Mindmap
 
-让 Codex 的工作过程变成一张用户能看懂、能修改、能追溯的分支树，而不是只留在聊天记录里的连续文本。
+让 AI Agent 的工作过程变成一张用户能看懂、能修改、能追溯的分支树，而不是只留在聊天记录里的连续文本。
 
 ## 何时启用
 
@@ -25,15 +27,28 @@ metadata:
 2. **关键检查点更新**：开始、计划成形、出现分支、重大修改前、验证后、用户编辑后、完成时更新。
 3. **不记录每次工具调用**：导图记录决策和结果，不把每个 shell 命令都变成节点。
 4. **分支必须可判断**：需要用户偏好时，使用 `decision` 节点列出选项、影响和建议，并标记 `🔴 CHECKPOINT · 🛑 STOP`，等待确认。
-5. **用户编辑优先**：浏览器保存的节点是用户意图。Codex 写图前必须重新读取最新 `revision`，不得覆盖用户修改；更新 `origin: "editor"` 的节点必须显式使用 `--allow-editor-overwrite`，且仅在用户确认后使用。
+5. **用户编辑优先**：浏览器保存的节点是用户意图。Agent 写图前必须重新读取最新 `revision`，不得覆盖用户修改；更新 `origin: "editor"` 的节点必须显式使用 `--allow-editor-overwrite`，且仅在用户确认后使用。
 6. **证据可追溯**：节点摘要写明判断依据；产物路径写入 `artifacts`；关键变化写入 `events.jsonl`。
 
 ## 路径约定
 
-下列命令中的 `<skill-root>` 是 `branch-mindmap` 的安装目录。不要假设 Codex 的工作目录等于 Skill 目录。
+下列命令中的 `<skill-root>` 是 `branch-mindmap` 的安装目录。不要假设 Agent 的工作目录等于 Skill 目录。
 
-- Windows: `$HOME\.codex\skills\branch-mindmap`
-- macOS / Linux: `$HOME/.codex/skills/branch-mindmap`
+- Codex: `$HOME/.codex/skills/branch-mindmap`
+- Claude Code: `$HOME/.claude/skills/branch-mindmap`
+- Cursor: `$HOME/.cursor/skills/branch-mindmap`
+- OpenClaw: `$HOME/.openclaw/workspace/skills/branch-mindmap`
+- DeepSeek Harness: `$HOME/.dsh/skills/branch-mindmap`
+- Other runtime: use its documented skills directory
+
+## 跨 runtime 兼容
+
+- `SKILL.md`、`scripts/mapctl.py` 和 JSON 数据模型是跨 runtime 的共同入口。
+- `mapctl.py` 只使用 Python 标准库，不依赖 Codex 专属 API。
+- `agents/openai.yaml` 只影响 Codex UI，其他 runtime 可以忽略。
+- `.codex-mindmap/` 是本地工作目录名称，为向后兼容保留；它不是运行时依赖，也可以加入 `.gitignore`。
+- 不同 runtime 只改变 Skill 的安装目录和显式调用语法，脚本命令保持一致。
+- 详细安装路径见 `references/runtime-compatibility.md`。
 
 ## 初始化
 
@@ -113,9 +128,9 @@ python <skill-root>/scripts/mapctl.py serve --map <map.json>
 
 1. 重新读取 `map.json`，不要使用对话中的旧副本。
 2. 把浏览器修改视为约束。
-3. 如果同一节点同一字段与 Codex 计划冲突，创建 `risk` 或 `decision` 节点并请求用户决定。
+3. 如果同一节点同一字段与 Agent 计划冲突，创建 `risk` 或 `decision` 节点并请求用户决定。
 4. 不得静默覆盖 `origin: "editor"` 的修改。
-5. Codex 若必须更新用户编辑过的节点，先得到明确确认，再使用 `--allow-editor-overwrite`；节点仍保留 `origin: "editor"`，事件记录实际执行者。
+5. Agent 若必须更新用户编辑过的节点，先得到明确确认，再使用 `--allow-editor-overwrite`；节点仍保留 `origin: "editor"`，事件记录实际执行者。
 
 ## 失败处理矩阵
 
@@ -172,6 +187,7 @@ python <skill-root>/scripts/mapctl.py validate --map <map.json>
 
 - `references/map-schema.md`：JSON 字段、状态约束和冲突规则。
 - `references/workflow.md`：自动启用、检查点、分支等待和用户编辑流程。
+- `references/runtime-compatibility.md`：Codex、Claude Code、Cursor 等 runtime 的安装和路径映射。
 - `assets/map_editor.html`：离线编辑器模板。
 - `scripts/mapctl.py`：CLI、渲染器和本地服务。
 
@@ -187,11 +203,11 @@ python <skill-root>/scripts/mapctl.py validate --map <map.json>
 - 不把静态 HTML 中未落盘的编辑当作已保存。
 - 不自动提交 `.codex-mindmap` 到 Git。
 - 不把本地编辑器暴露到 `0.0.0.0` 或外部网络。
-- 不声称这是运行时 hook；它依靠 Codex 在检查点主动执行。
+- 不声称这是运行时 hook；它依靠 Agent 在检查点主动执行。
 - 不在未验证 `map.json` 的情况下宣称任务完成。
 
 ## 诚实边界
 
-- Skill 依靠 Codex 在检查点主动写图，不能替代运行时级 hook。
+- Skill 依靠 Agent 在检查点主动写图，不能替代运行时级 hook。
 - 不在每次工具调用后刷新，避免噪音、延迟和成本。
 - 导图是工作记忆，不是完成任务的证明；最终结果仍需真实测试。

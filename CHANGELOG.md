@@ -2,6 +2,23 @@
 
 All notable changes to this project are documented here.
 
+## [0.1.1] - 2026-11-08
+
+### Added
+
+- Cross-runtime installation guidance for Codex, Claude Code, Cursor, OpenClaw, and DeepSeek Harness.
+- `references/runtime-compatibility.md` with portable script paths and verification steps.
+- Cross-runtime forward-test prompt.
+- Agent Skills compatibility badge and global auto-detection install command.
+- Multi-runtime install example and English quick-start README.
+
+### Changed
+
+- Generalized workflow instructions from Codex-only wording to AI Agent wording.
+- Documented that `agents/openai.yaml` is optional Codex UI metadata.
+- Documented that `.codex-mindmap/` is a backward-compatible local directory name, not a runtime dependency.
+- Updated metadata version and runtime coverage.
+
 ## [0.1.0] - 2026-11-07
 
 ### Added

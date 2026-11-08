@@ -18,5 +18,10 @@
     "id": 4,
     "prompt": "把这张导图保存一下，我改了很多节点。",
     "expected": "启动或连接本地编辑器，带 expected_revision 保存；若 revision 冲突返回 409 并要求刷新合并，同时重新渲染 HTML 和 Mermaid。"
+  },
+  {
+    "prompt": "我在 Cursor 里用你，导图和脚本也能正常工作吗？",
+    "expected": "说明脚本不依赖 Codex 专属 API，使用 <skill-root> 定位 mapctl.py；agents/openai.yaml 可忽略，.codex-mindmap 只是本地目录名；在临时目录执行 init、render、validate 验证。",
+    "id": 5
   }
 ]

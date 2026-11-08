@@ -48,7 +48,7 @@
 
 - 浏览器 `PUT /api/map` 使用 `expected_revision`。
 - CLI `add`、`update`、`checkpoint` 使用 `--expected-revision`。
-- Codex 写图前先运行 `status` 或重新读取 `map.json`。
+- Agent 写图前先运行 `status` 或重新读取 `map.json`。
 - revision 不一致时停止写入，读取最新 JSON 后合并。
 - 无法合并时创建 `decision` 节点，不直接覆盖。
 
@@ -84,9 +84,9 @@
 - CLI 与服务共享跨进程锁，避免 TOCTOU。
 - 服务器与最新 revision 不一致时返回 `409`。
 - 浏览器不得自动覆盖；用户应刷新并重新合并。
-- Codex 写图前必须重新读取文件。
+- Agent 写图前必须重新读取文件。
 - 同一字段冲突时停止自动合并，创建 `risk` 节点并请求用户判断。
-- Codex 更新用户编辑过的节点必须显式 `--allow-editor-overwrite`，且保留 `origin: "editor"`。
+- Agent 更新用户编辑过的节点必须显式 `--allow-editor-overwrite`，且保留 `origin: "editor"`。
 
 ## 9. 完成
 
