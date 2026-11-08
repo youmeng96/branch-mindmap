@@ -36,4 +36,4 @@ jobs:
       - name: Check Markdown links
         uses: lycheeverse/lychee-action@v2
         with:
-          args: --verbose --no-progress --accept 200,206,403 README.md SKILL.md references/*.md
+          args: --verbose --no-progress --accept 200,206,403 README.md README_EN.md SKILL.md references/*.md
